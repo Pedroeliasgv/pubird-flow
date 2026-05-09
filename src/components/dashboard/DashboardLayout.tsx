@@ -6,6 +6,7 @@ import {
   LogOut,
   Megaphone,
   Users,
+  CalendarClock,
 } from "lucide-react";
 
 import { signOut } from "../../lib/auth";
@@ -32,6 +33,11 @@ const menuItems = [
     label: "CRM",
     href: "/dashboard/crm",
     icon: BarChart3,
+  },
+  {
+    label: "Follow-up",
+    href: "/dashboard/follow-up",
+    icon: CalendarClock,
   },
   {
     label: "Serviços",
