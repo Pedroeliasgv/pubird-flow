@@ -1,74 +1,80 @@
-# React + TypeScript + Vite
+<div align="center">
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# 🪽 Pubird Flow
 
-Currently, two official plugins are available:
+### Automação de Atendimento, Leads e Vendas para Negócios Locais
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+**Transforme leads em clientes com uma esteira inteligente de vendas.**
 
-## React Compiler
+<br />
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+![Status](https://img.shields.io/badge/status-em%20desenvolvimento-6366f1?style=for-the-badge)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-111827?style=for-the-badge&logo=supabase&logoColor=3ECF8E)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-0F172A?style=for-the-badge&logo=tailwindcss&logoColor=38BDF8)
 
-## Expanding the ESLint configuration
+<br />
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+</div>
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## 📌 Sobre o projeto
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+O **Pubird Flow** é um SaaS desenvolvido para ajudar negócios locais a organizarem seus leads, acompanharem oportunidades comerciais e aumentarem suas vendas com um processo mais inteligente.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+A plataforma centraliza leads vindos do **WhatsApp, Instagram, site, indicações e tráfego pago**, permitindo que empresas acompanhem cada oportunidade dentro de um funil comercial simples, visual e eficiente.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+---
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-# pubird-flow
+## 🎯 Problema que o Pubird Flow resolve
+
+Muitos negócios locais perdem vendas porque:
+
+- demoram para responder possíveis clientes;
+- esquecem de fazer follow-up;
+- não sabem de onde os leads estão vindo;
+- não têm um CRM simples para acompanhar oportunidades;
+- dependem apenas do WhatsApp de forma desorganizada;
+- não medem conversão, receita estimada ou desempenho comercial.
+
+O **Pubird Flow** nasce para transformar esse caos em um processo claro, organizado e escalável.
+
+---
+
+## 🚀 Proposta do produto
+
+> Uma plataforma simples e poderosa para transformar atendimento em vendas.
+
+Com o Pubird Flow, uma empresa consegue:
+
+- capturar leads;
+- organizar contatos;
+- acompanhar o funil de vendas;
+- registrar interações;
+- criar tarefas de follow-up;
+- visualizar métricas comerciais;
+- cadastrar serviços;
+- usar uma página pública de captação;
+- preparar estrutura para pagamento mensal e automações futuras.
+
+---
+
+## 🧠 Conceito do SaaS
+
+O sistema é pensado para funcionar como uma operação comercial completa para negócios locais.
+
+```txt
+Lead entra
+↓
+Vai para o CRM
+↓
+Recebe status no funil
+↓
+Equipe faz follow-up
+↓
+Venda é acompanhada
+↓
+Dashboard mostra os resultados
