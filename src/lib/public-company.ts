@@ -50,6 +50,15 @@ export async function getPublicCompanyServices(companyId: string) {
   return data as Service[];
 }
 
+function getTomorrowAtNine() {
+  const date = new Date();
+
+  date.setDate(date.getDate() + 1);
+  date.setHours(9, 0, 0, 0);
+
+  return date.toISOString();
+}
+
 export async function createPublicLead(input: CreatePublicLeadInput) {
   const notesParts = [
     input.serviceInterest
@@ -58,18 +67,55 @@ export async function createPublicLead(input: CreatePublicLeadInput) {
     input.message ? `Mensagem: ${input.message}` : null,
   ].filter(Boolean);
 
-  const { error } = await supabase.from("leads").insert({
-    company_id: input.companyId,
-    name: input.name.trim(),
-    phone: input.phone.trim(),
-    email: input.email?.trim().toLowerCase() || null,
-    source: "Página Pública",
-    status: "new",
-    temperature: "cold",
-    notes: notesParts.join("\n\n") || null,
-  });
+  const { data: lead, error: leadError } = await supabase
+    .from("leads")
+    .insert({
+      company_id: input.companyId,
+      name: input.name.trim(),
+      phone: input.phone.trim(),
+      email: input.email?.trim().toLowerCase() || null,
+      source: "Página Pública",
+      status: "new",
+      temperature: "cold",
+      notes: notesParts.join("\n\n") || null,
+    })
+    .select("id, name")
+    .single();
 
-  if (error) {
-    throw error;
+  if (leadError) {
+    throw leadError;
   }
+
+  const followUpTitle = `Retornar contato de ${input.name.trim()}`;
+
+  const followUpDescription = [
+    "Lead capturado automaticamente pela página pública.",
+    input.serviceInterest
+      ? `Serviço de interesse: ${input.serviceInterest}`
+      : null,
+    input.phone ? `WhatsApp: ${input.phone}` : null,
+    input.email ? `E-mail: ${input.email}` : null,
+    input.message ? `Mensagem: ${input.message}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const { error: followUpError } = await supabase
+    .from("follow_up_tasks")
+    .insert({
+      company_id: input.companyId,
+      lead_id: lead.id,
+      assigned_to: null,
+      title: followUpTitle,
+      description: followUpDescription,
+      due_at: getTomorrowAtNine(),
+      status: "pending",
+      priority: "high",
+    });
+
+  if (followUpError) {
+    console.error("Erro ao criar follow-up automático:", followUpError);
+  }
+
+  return lead;
 }
