@@ -8,6 +8,7 @@ import {
   Megaphone,
   MessageCircle,
   Users,
+  Workflow,
 } from "lucide-react";
 
 import { signOut } from "../../lib/auth";
@@ -44,6 +45,11 @@ const menuItems = [
     label: "Mensagens",
     href: "/dashboard/messages",
     icon: MessageCircle,
+  },
+  {
+    label: "Automações",
+    href: "/dashboard/automations",
+    icon: Workflow,
   },
   {
     label: "Serviços",
