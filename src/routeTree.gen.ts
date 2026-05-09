@@ -3,7 +3,10 @@ import { Route as indexRoute } from "./routes/index";
 import { Route as loginRoute } from "./routes/login";
 import { Route as registerRoute } from "./routes/register";
 import { Route as dashboardIndexRoute } from "./routes/dashboard/index";
+import { Route as dashboardLeadsRoute } from "./routes/dashboard/leads";
+import { Route as dashboardCrmRoute } from "./routes/dashboard/crm";
 import { Route as dashboardOnboardingRoute } from "./routes/dashboard/onboarding";
+import { Route as dashboardSocialRoute } from "./routes/dashboard/social";
 
 const indexRouteWithParent = indexRoute.update({
   id: "/",
@@ -35,10 +38,32 @@ const dashboardOnboardingRouteWithParent = dashboardOnboardingRoute.update({
   getParentRoute: () => rootRoute,
 } as any);
 
+const dashboardLeadsRouteWithParent = dashboardLeadsRoute.update({
+  id: "/dashboard/leads",
+  path: "/dashboard/leads",
+  getParentRoute: () => rootRoute,
+} as any);
+
+const dashboardCrmRouteWithParent = dashboardCrmRoute.update({
+  id: "/dashboard/crm",
+  path: "/dashboard/crm",
+  getParentRoute: () => rootRoute,
+} as any);
+
+const dashboardSocialRouteWithParent = dashboardSocialRoute.update({
+  id: "/dashboard/social",
+  path: "/dashboard/social",
+  getParentRoute: () => rootRoute,
+} as any);
+
 export const routeTree = rootRoute.addChildren([
   indexRouteWithParent,
   loginRouteWithParent,
   registerRouteWithParent,
   dashboardIndexRouteWithParent,
   dashboardOnboardingRouteWithParent,
+  dashboardLeadsRouteWithParent,
+  dashboardCrmRouteWithParent,
+  dashboardSocialRouteWithParent,
 ]);
+

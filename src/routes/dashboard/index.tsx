@@ -1,118 +1,191 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import {
-  BarChart3,
-  LayoutDashboard,
-  MessageCircle,
-  Users,
-  LogOut,
   Building2,
+  Globe,
+  Loader2,
+  Phone,
+  TrendingUp,
+  Users,
 } from "lucide-react";
+
+import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
+import { getCurrentUser } from "../../lib/auth";
+import { Company, getUserCompany } from "../../lib/company";
 
 export const Route = createFileRoute("/dashboard/")({
   component: DashboardPage,
 });
 
 function DashboardPage() {
+  const navigate = useNavigate();
+
+  const [company, setCompany] = useState<Company | null>(null);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    async function loadDashboard() {
+      try {
+        const user = await getCurrentUser();
+
+        if (!user) {
+          navigate({ to: "/login" });
+          return;
+        }
+
+        const userCompany = await getUserCompany(user.id);
+
+        if (!userCompany) {
+          navigate({ to: "/dashboard/onboarding" });
+          return;
+        }
+
+        setCompany(userCompany);
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setChecking(false);
+      }
+    }
+
+    loadDashboard();
+  }, [navigate]);
+
+  if (checking) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-950">
+        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-slate-600 shadow-sm">
+          <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
+          Carregando dashboard...
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      <div className="flex min-h-screen">
-        <aside className="hidden w-72 border-r border-border bg-card/40 p-6 md:block">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-              <BarChart3 className="h-6 w-6" />
-            </div>
-
-            <div>
-              <p className="font-bold">Pubird Flow</p>
-              <p className="text-xs text-muted-foreground">
-                CRM + automação
-              </p>
-            </div>
-          </div>
-
-          <nav className="mt-10 space-y-2">
-            {[
-              { label: "Dashboard", icon: LayoutDashboard, active: true },
-              { label: "Leads", icon: Users },
-              { label: "CRM", icon: BarChart3 },
-              { label: "Mensagens", icon: MessageCircle },
-            ].map((item) => {
-              const Icon = item.icon;
-
-              return (
-                <button
-                  key={item.label}
-                  className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm transition ${
-                    item.active
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  <Icon className="h-5 w-5" />
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
-
-        <section className="flex-1">
-          <header className="flex h-20 items-center justify-between border-b border-border px-6">
-            <div>
-              <p className="text-sm text-muted-foreground">Empresa</p>
-              <h1 className="text-xl font-bold">Pubird Flow</h1>
-            </div>
-
-            <button className="flex items-center gap-2 rounded-2xl border border-border px-4 py-2 text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground">
-              <LogOut className="h-4 w-4" />
-              Sair
-            </button>
-          </header>
-
-          <div className="p-6">
-            <div className="mb-8">
-              <h2 className="text-3xl font-bold">Dashboard</h2>
-              <p className="mt-2 text-muted-foreground">
-                Visão geral inicial da operação comercial.
-              </p>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-4">
-              {[
-                ["Total de leads", "0"],
-                ["Novos leads", "0"],
-                ["Em atendimento", "0"],
-                ["Vendas fechadas", "0"],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="rounded-3xl border border-border bg-card/70 p-6"
-                >
-                  <p className="text-sm text-muted-foreground">{label}</p>
-                  <p className="mt-4 text-4xl font-bold">{value}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 rounded-3xl border border-border bg-card/70 p-8">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <Building2 className="h-6 w-6" />
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-bold">
-                    Dashboard carregado com sucesso
-                  </h3>
-                  <p className="mt-1 text-muted-foreground">
-                    Próximo passo: conectar os dados reais do Supabase.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+    <DashboardLayout
+      companyName={company?.name}
+      pageTitle="Dashboard"
+      pageDescription="Visão geral da operação comercial da empresa."
+    >
+      <div className="grid gap-4 md:grid-cols-4">
+        <MetricCard label="Total de leads" value="0" />
+        <MetricCard label="Novos leads" value="0" />
+        <MetricCard label="Em atendimento" value="0" />
+        <MetricCard label="Vendas fechadas" value="0" />
       </div>
-    </main>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 text-indigo-600">
+              <TrendingUp className="h-5 w-5" />
+            </div>
+
+            <div>
+              <h2 className="text-lg font-bold">Resumo comercial</h2>
+              <p className="text-sm text-slate-500">
+                Seus indicadores aparecerão aqui quando os leads forem cadastrados.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex min-h-72 items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 text-center">
+            <div>
+              <Users className="mx-auto h-10 w-10 text-slate-400" />
+              <h3 className="mt-4 font-semibold text-slate-900">
+                Nenhum lead cadastrado ainda
+              </h3>
+              <p className="mt-2 max-w-sm text-sm text-slate-500">
+                Quando você cadastrar leads ou receber contatos pela página pública,
+                seus dados aparecerão aqui.
+              </p>
+              <a
+                href="/dashboard/leads"
+                className="mt-5 inline-flex rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Cadastrar primeiro lead
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
+              <Building2 className="h-5 w-5" />
+            </div>
+
+            <div>
+              <h2 className="text-lg font-bold">{company?.name}</h2>
+              <p className="text-sm text-slate-500">
+                Empresa cadastrada no Pubird Flow.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <InfoCard
+              icon={<Phone className="h-4 w-4" />}
+              label="Telefone"
+              value={company?.phone || "Não informado"}
+            />
+
+            <InfoCard
+              icon={<Globe className="h-4 w-4" />}
+              label="Site"
+              value={company?.website || "Não informado"}
+            />
+
+            <InfoCard
+              icon={<Building2 className="h-4 w-4" />}
+              label="Status"
+              value={company?.status || "active"}
+            />
+          </div>
+
+          {company?.slug && (
+            <a
+              href={`/empresa/${company.slug}`}
+              className="mt-5 flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+            >
+              Ver página pública
+            </a>
+          )}
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
+
+function MetricCard(props: { label: string; value: string }) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <p className="text-sm text-slate-500">{props.label}</p>
+      <p className="mt-4 text-4xl font-bold tracking-tight text-slate-950">
+        {props.value}
+      </p>
+    </div>
+  );
+}
+
+function InfoCard(props: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="mb-2 flex items-center gap-2 text-slate-500">
+        {props.icon}
+        <span className="text-xs font-medium uppercase tracking-wide">
+          {props.label}
+        </span>
+      </div>
+
+      <p className="break-words text-sm font-semibold text-slate-900">
+        {props.value}
+      </p>
+    </div>
   );
 }
