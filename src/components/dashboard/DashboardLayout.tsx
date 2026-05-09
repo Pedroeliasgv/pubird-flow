@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   BarChart3,
+  BriefcaseBusiness,
   LayoutDashboard,
   LogOut,
   Megaphone,
@@ -31,6 +32,11 @@ const menuItems = [
     label: "CRM",
     href: "/dashboard/crm",
     icon: BarChart3,
+  },
+  {
+    label: "Serviços",
+    href: "/dashboard/services",
+    icon: BriefcaseBusiness,
   },
   {
     label: "Social Studio",
