@@ -65,16 +65,29 @@ export function DashboardLayout({
     <main className="min-h-screen bg-[#F8FAFC] text-slate-950">
       <div className="flex min-h-screen">
         <aside className="hidden w-72 border-r border-slate-200 bg-white p-6 lg:flex lg:flex-col">
-          <Link to="/" className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
-              <BarChart3 className="h-6 w-6" />
+          <Link to="/" className="group flex items-center gap-4">
+            <div className="relative">
+                <div className="absolute -inset-1 rounded-3xl bg-gradient-to-br from-indigo-500/30 via-cyan-400/20 to-purple-500/30 opacity-70 blur-xl transition duration-300 group-hover:opacity-100" />
+
+                <div className="relative flex h-14 w-14 items-center justify-center rounded-3xl border border-slate-200 bg-slate-950 p-2 shadow-xl shadow-indigo-500/10 transition duration-300 group-hover:-translate-y-0.5">
+                <img
+                    src="/public/logo-pubird.png"
+                    alt="Logo Pubird"
+                    className="h-full w-full object-contain"
+                />
+                </div>
             </div>
 
             <div>
-              <p className="font-bold tracking-tight">Pubird Flow</p>
-              <p className="text-xs text-slate-500">CRM + automação</p>
+                <p className="text-lg font-black tracking-tight text-slate-950">
+                Pubird Flow
+                </p>
+
+                <p className="text-xs font-medium text-slate-500">
+                CRM + automação
+                </p>
             </div>
-          </Link>
+            </Link>
 
           <div className="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">

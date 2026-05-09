@@ -18,18 +18,29 @@ export function Navbar() {
   return (
     <header className="fixed left-0 right-0 top-0 z-50 border-b border-border bg-background/75 backdrop-blur-xl">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
-        <a href="/" className="flex items-center gap-3" onClick={closeMenu}>
-          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-indigo-500/20">
-            <BarChart3 className="h-6 w-6" />
-          </div>
+        <a href="/" className="group flex items-center gap-4" onClick={closeMenu}>
+            <div className="relative">
+                <div className="absolute -inset-1 rounded-3xl bg-gradient-to-br from-indigo-500/40 via-cyan-400/20 to-purple-500/40 opacity-70 blur-xl transition duration-300 group-hover:opacity-100" />
 
-          <div>
-            <p className="text-lg font-bold tracking-tight">Pubird Flow</p>
-            <p className="text-xs text-muted-foreground">
-              CRM + automação comercial
-            </p>
-          </div>
-        </a>
+                <div className="relative flex h-14 w-14 items-center justify-center rounded-3xl border border-white/10 bg-slate-950 p-2 shadow-xl shadow-indigo-500/20 transition duration-300 group-hover:-translate-y-0.5 group-hover:shadow-indigo-500/30">
+                <img
+                    src="/public/logo-pubird.png"
+                    alt="Logo Pubird"
+                    className="h-full w-full object-contain"
+                />
+                </div>
+            </div>
+
+            <div>
+                <p className="text-xl font-black tracking-tight text-foreground">
+                Pubird Flow
+                </p>
+
+                <p className="text-xs font-medium text-muted-foreground">
+                CRM + automação comercial
+                </p>
+            </div>
+            </a>
 
         <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
           {navItems.map((item) => (
