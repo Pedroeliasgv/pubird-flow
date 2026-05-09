@@ -18,8 +18,12 @@ import {
 import {
   createPublicLead,
   getPublicCompanyBySlug,
+  getPublicCompanyServices,
   PublicCompany,
 } from "../../lib/public-company";
+
+import type { Service } from "../../lib/services";
+import { formatCurrency, serviceBillingTypeLabels } from "../../lib/services";
 
 export const Route = createFileRoute("/empresa/$slug")({
   component: PublicCompanyPage,
@@ -29,6 +33,7 @@ function PublicCompanyPage() {
   const { slug } = Route.useParams();
 
   const [company, setCompany] = useState<PublicCompany | null>(null);
+  const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [name, setName] = useState("");
@@ -44,8 +49,24 @@ function PublicCompanyPage() {
   useEffect(() => {
     async function loadCompany() {
       try {
+        setLoading(true);
+        setErrorMessage("");
+
         const data = await getPublicCompanyBySlug(slug);
+
+        if (!data) {
+          setCompany(null);
+          return;
+        }
+
         setCompany(data);
+
+        const companyServices = await getPublicCompanyServices(data.id);
+        setServices(companyServices);
+
+        if (companyServices.length > 0) {
+          setServiceInterest(companyServices[0].name);
+        }
       } catch (error) {
         console.error(error);
         setErrorMessage("Não foi possível carregar essa página.");
@@ -91,7 +112,7 @@ function PublicCompanyPage() {
       setName("");
       setPhone("");
       setEmail("");
-      setServiceInterest("");
+      setServiceInterest(services.length > 0 ? services[0].name : "");
       setMessage("");
     } catch (error) {
       console.error(error);
@@ -199,6 +220,58 @@ function PublicCompanyPage() {
                   description="A empresa poderá retornar com mais precisão."
                 />
               </div>
+
+              {services.length > 0 && (
+                <div className="mt-10 max-w-2xl rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="mb-5">
+                    <p className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-600">
+                      Serviços disponíveis
+                    </p>
+
+                    <h2 className="mt-2 text-2xl font-bold tracking-tight">
+                      Escolha o serviço que você procura
+                    </h2>
+
+                    <p className="mt-2 text-sm text-slate-500">
+                      Esses são alguns dos serviços cadastrados por{" "}
+                      {company.name}.
+                    </p>
+                  </div>
+
+                  <div className="grid gap-3">
+                    {services.slice(0, 4).map((service) => (
+                      <div
+                        key={service.id}
+                        className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <h3 className="font-semibold text-slate-950">
+                              {service.name}
+                            </h3>
+
+                            {service.description && (
+                              <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-500">
+                                {service.description}
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="shrink-0 text-right">
+                            <p className="font-bold text-slate-950">
+                              {formatCurrency(Number(service.price))}
+                            </p>
+
+                            <p className="mt-1 text-xs text-slate-500">
+                              {serviceBillingTypeLabels[service.billing_type]}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="mt-10 flex flex-wrap gap-3 text-sm text-slate-600">
                 {company.phone && (
@@ -315,14 +388,39 @@ function PublicCompanyPage() {
                     </Field>
 
                     <Field label="Serviço de interesse">
-                      <input
-                        className="input-light"
-                        value={serviceInterest}
-                        onChange={(event) =>
-                          setServiceInterest(event.target.value)
-                        }
-                        placeholder="Ex: avaliação, orçamento, consulta..."
-                      />
+                      {services.length > 0 ? (
+                        <select
+                          className="input-light"
+                          value={serviceInterest}
+                          onChange={(event) =>
+                            setServiceInterest(event.target.value)
+                          }
+                        >
+                          {services.map((service) => (
+                            <option key={service.id} value={service.name}>
+                              {service.name} —{" "}
+                              {formatCurrency(Number(service.price))}
+                            </option>
+                          ))}
+
+                          <option value="Outro">Outro serviço</option>
+                        </select>
+                      ) : (
+                        <input
+                          className="input-light"
+                          value={serviceInterest}
+                          onChange={(event) =>
+                            setServiceInterest(event.target.value)
+                          }
+                          placeholder="Ex: avaliação, orçamento, consulta..."
+                        />
+                      )}
+
+                      {services.length > 0 && (
+                        <p className="mt-2 text-xs text-slate-500">
+                          Escolha um dos serviços cadastrados pela empresa.
+                        </p>
+                      )}
                     </Field>
 
                     <Field label="Mensagem">

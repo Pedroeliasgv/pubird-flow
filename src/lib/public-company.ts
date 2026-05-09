@@ -1,4 +1,5 @@
 import { supabase } from "../integrations/supabase/client";
+import type { Service } from "./services";
 
 export type PublicCompany = {
   id: string;
@@ -32,6 +33,21 @@ export async function getPublicCompanyBySlug(slug: string) {
   }
 
   return data as PublicCompany | null;
+}
+
+export async function getPublicCompanyServices(companyId: string) {
+  const { data, error } = await supabase
+    .from("services")
+    .select("*")
+    .eq("company_id", companyId)
+    .eq("status", "active")
+    .order("name", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return data as Service[];
 }
 
 export async function createPublicLead(input: CreatePublicLeadInput) {
