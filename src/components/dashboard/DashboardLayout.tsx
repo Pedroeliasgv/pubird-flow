@@ -9,6 +9,7 @@ import {
   MessageCircle,
   Users,
   Workflow,
+  CreditCard,
 } from "lucide-react";
 
 import { signOut } from "../../lib/auth";
@@ -60,6 +61,11 @@ const menuItems = [
     label: "Social Studio",
     href: "/dashboard/social",
     icon: Megaphone,
+  },
+  {
+    label: "Billing",
+    href: "/dashboard/billing",
+    icon: CreditCard,
   },
 ];
 

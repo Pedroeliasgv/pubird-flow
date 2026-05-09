@@ -12,6 +12,7 @@ import { Route as dashboardServicesRoute } from "./routes/dashboard/services";
 import { Route as dashboardFollowUpRoute } from "./routes/dashboard/follow-up";
 import { Route as dashboardMessagesRoute } from "./routes/dashboard/messages";
 import { Route as dashboardAutomationsRoute } from "./routes/dashboard/automations";
+import { Route as dashboardBillingRoute } from "./routes/dashboard/billing";
 
 const indexRouteWithParent = indexRoute.update({
   id: "/",
@@ -90,6 +91,12 @@ const dashboardAutomationsRouteWithParent = dashboardAutomationsRoute.update({
   getParentRoute: () => rootRoute,
 } as any);
 
+const dashboardBillingRouteWithParent = dashboardBillingRoute.update({
+  id: "/dashboard/billing",
+  path: "/dashboard/billing",
+  getParentRoute: () => rootRoute,
+} as any);
+
 export const routeTree = rootRoute.addChildren([
   indexRouteWithParent,
   loginRouteWithParent,
@@ -103,5 +110,6 @@ export const routeTree = rootRoute.addChildren([
   dashboardAutomationsRouteWithParent,
   dashboardServicesRouteWithParent,
   dashboardSocialRouteWithParent,
+  dashboardBillingRouteWithParent,
   empresaSlugRouteWithParent,
 ]);
