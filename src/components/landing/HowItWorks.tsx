@@ -1,65 +1,76 @@
+import { Building2, KanbanSquare, MessageCircle, TrendingUp } from "lucide-react";
+
 const steps = [
   {
-    title: "Cadastre sua empresa",
+    icon: Building2,
+    title: "Configure sua empresa",
     description:
-      "Configure nome, segmento, WhatsApp, serviços e página pública.",
+      "Cadastre nome, segmento, serviços, WhatsApp e sua página pública de captura.",
   },
   {
-    title: "Receba leads no CRM",
+    icon: KanbanSquare,
+    title: "Receba e organize leads",
     description:
-      "Leads manuais ou vindos da página pública entram automaticamente no funil.",
+      "Todo contato vira uma oportunidade dentro do CRM visual da empresa.",
   },
   {
-    title: "Acompanhe o funil",
-    description:
-      "Mova oportunidades entre etapas e saiba quem está perto de fechar.",
-  },
-  {
+    icon: MessageCircle,
     title: "Faça follow-up",
     description:
       "Use mensagens prontas, registre interações e recupere leads parados.",
+  },
+  {
+    icon: TrendingUp,
+    title: "Acompanhe resultados",
+    description:
+      "Veja total de leads, vendas fechadas, taxa de conversão e receita estimada.",
   },
 ];
 
 export function HowItWorks() {
   return (
     <section id="como-funciona" className="px-6 py-24">
-      <div className="mx-auto max-w-7xl rounded-3xl border border-white/10 bg-white/[0.03] p-8 md:p-12">
-        <div className="grid gap-10 md:grid-cols-2 md:items-center">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">
-              Como funciona
-            </p>
+      <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-primary">
+            Como funciona
+          </p>
 
-            <h2 className="mt-4 text-4xl font-bold tracking-tight text-white md:text-5xl">
-              Do primeiro contato até a venda fechada.
-            </h2>
+          <h2 className="mt-4 text-4xl font-bold tracking-tight md:text-5xl">
+            Da captação ao fechamento em um único fluxo.
+          </h2>
 
-            <p className="mt-5 text-lg leading-8 text-slate-400">
-              O Pubird Flow organiza o processo comercial para que nenhum lead
-              fique esquecido e sua equipe saiba exatamente o próximo passo.
-            </p>
-          </div>
+          <p className="mt-5 text-muted-foreground">
+            O Pubird Flow organiza a jornada comercial para sua empresa parar
+            de perder oportunidades.
+          </p>
+        </div>
 
-          <div className="space-y-4">
-            {steps.map((step, index) => (
+        <div id="demo" className="mt-14 grid gap-6 md:grid-cols-4">
+          {steps.map((step, index) => {
+            const Icon = step.icon;
+
+            return (
               <div
                 key={step.title}
-                className="flex gap-4 rounded-2xl border border-white/10 bg-slate-950/60 p-5"
+                className="rounded-3xl border border-border bg-card/70 p-6"
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-500 font-bold text-white">
-                  {index + 1}
+                <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <Icon className="h-6 w-6" />
                 </div>
 
-                <div>
-                  <p className="font-semibold text-white">{step.title}</p>
-                  <p className="mt-1 text-sm leading-6 text-slate-400">
-                    {step.description}
-                  </p>
-                </div>
+                <span className="text-sm font-semibold text-primary">
+                  Etapa {index + 1}
+                </span>
+
+                <h3 className="mt-3 text-xl font-bold">{step.title}</h3>
+
+                <p className="mt-3 leading-7 text-muted-foreground">
+                  {step.description}
+                </p>
               </div>
-            ))}
-          </div>
+            );
+          })}
         </div>
       </div>
     </section>
