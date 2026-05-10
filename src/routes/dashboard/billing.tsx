@@ -24,10 +24,15 @@ import {
   Payment,
   paymentStatusLabels,
   Plan,
-  subscribeCompany,
   SubscriptionWithPlan,
   subscriptionStatusLabels,
 } from "../../lib/billing";
+
+import {
+  BillingType,
+  createAsaasCheckout,
+  PlanSlug,
+} from "../../services/asaas";
 
 export const Route = createFileRoute("/dashboard/billing")({
   component: BillingPage,
@@ -41,6 +46,8 @@ function BillingPage() {
   const [subscription, setSubscription] =
     useState<SubscriptionWithPlan | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
+
+  const [billingType, setBillingType] = useState<BillingType>("PIX");
 
   const [loading, setLoading] = useState(true);
   const [processingPlanId, setProcessingPlanId] = useState("");
@@ -96,32 +103,59 @@ function BillingPage() {
 
   async function handleSubscribe(plan: Plan) {
     if (!company) {
+      setErrorMessage("Empresa não encontrada. Faça login novamente.");
+      return;
+    }
+
+    const planSlug = (plan as Plan & { slug?: string }).slug as
+      | PlanSlug
+      | undefined;
+
+    if (!planSlug) {
+      setErrorMessage(
+        "Este plano está sem slug cadastrado. Verifique a tabela plans no Supabase."
+      );
       return;
     }
 
     const confirmed = window.confirm(
-      `Confirmar alteração para o plano ${plan.name}?`
+      `Confirmar assinatura do plano ${plan.name}?`
     );
 
     if (!confirmed) {
       return;
     }
 
-    setProcessingPlanId(plan.id);
-    setErrorMessage("");
-    setSuccessMessage("");
-
     try {
-      const updatedSubscription = await subscribeCompany({
-        companyId: company.id,
-        planId: plan.id,
+      setProcessingPlanId(plan.id);
+      setErrorMessage("");
+      setSuccessMessage("");
+
+      const result = await createAsaasCheckout({
+        planSlug,
+        billingType,
       });
 
-      setSubscription(updatedSubscription);
-      setSuccessMessage(`Plano ${plan.name} ativado com sucesso.`);
+      const invoiceUrl = result.asaas?.payment?.invoiceUrl;
+
+      if (invoiceUrl) {
+        window.location.href = invoiceUrl;
+        return;
+      }
+
+      setSuccessMessage(
+        "Assinatura criada, mas o link de pagamento ainda não foi gerado. Verifique no Asaas."
+      );
     } catch (error) {
-      console.error(error);
-      setErrorMessage("Erro ao ativar plano.");
+      console.error("Erro ao assinar plano:", error);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Erro ao criar assinatura. Tente novamente.";
+
+      setErrorMessage(message);
+      alert(message);
     } finally {
       setProcessingPlanId("");
     }
@@ -267,10 +301,7 @@ function BillingPage() {
                 }
               />
 
-              <InfoRow
-                label="Gateway"
-                value="Preparado para Asaas / Mercado Pago / Stripe"
-              />
+              <InfoRow label="Gateway" value="Asaas" />
             </div>
           </div>
 
@@ -290,10 +321,9 @@ function BillingPage() {
             </button>
           )}
 
-          <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-800">
-            Esta tela ainda usa ativação manual/simulada. O próximo passo é
-            conectar um gateway real, como Asaas ou Mercado Pago, para cobrança
-            mensal automática via Pix, cartão ou boleto.
+          <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">
+            Pagamentos conectados ao Asaas. Ao escolher um plano, o cliente será
+            enviado para a página de pagamento via Pix, boleto ou cartão.
           </div>
         </section>
 
@@ -306,6 +336,44 @@ function BillingPage() {
             <p className="mt-2 text-slate-500">
               Escolha o plano ideal para sua operação comercial.
             </p>
+          </div>
+
+          <div className="mb-6 inline-flex rounded-2xl border border-slate-200 bg-slate-50 p-1">
+            <button
+              type="button"
+              onClick={() => setBillingType("PIX")}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                billingType === "PIX"
+                  ? "bg-slate-950 text-white"
+                  : "text-slate-600 hover:bg-white"
+              }`}
+            >
+              Pix
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setBillingType("BOLETO")}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                billingType === "BOLETO"
+                  ? "bg-slate-950 text-white"
+                  : "text-slate-600 hover:bg-white"
+              }`}
+            >
+              Boleto
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setBillingType("CREDIT_CARD")}
+              className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                billingType === "CREDIT_CARD"
+                  ? "bg-slate-950 text-white"
+                  : "text-slate-600 hover:bg-white"
+              }`}
+            >
+              Cartão
+            </button>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-3">
@@ -378,7 +446,7 @@ function BillingPage() {
                       <Loader2 className="h-4 w-4 animate-spin" />
                     )}
 
-                    {isCurrent ? "Plano atual" : "Escolher plano"}
+                    {isCurrent ? "Plano atual" : "Assinar plano"}
                   </button>
                 </article>
               );
@@ -411,8 +479,8 @@ function BillingPage() {
               </h3>
 
               <p className="mt-2 max-w-md text-sm text-slate-500">
-                Quando o gateway de pagamento for integrado, cobranças e
-                pagamentos aparecerão aqui automaticamente.
+                Quando o Asaas confirmar cobranças e pagamentos, eles
+                aparecerão aqui automaticamente.
               </p>
             </div>
           </div>
