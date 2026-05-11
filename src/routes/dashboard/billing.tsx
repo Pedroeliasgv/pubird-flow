@@ -34,7 +34,18 @@ import {
   createAsaasCheckout,
   PlanSlug,
 } from "../../services/asaas";
-import { getPlanAccess } from "../../lib/planAccess";
+
+import { getLeads, Lead } from "../../lib/leads";
+import { getServices, Service } from "../../lib/services";
+import {
+  getMessageTemplates,
+  MessageTemplate,
+} from "../../lib/message-templates";
+import {
+  formatPlanLimit,
+  getPlanAccess,
+  isUnlimitedLimit,
+} from "../../lib/planAccess";
 
 export const Route = createFileRoute("/dashboard/billing")({
   component: BillingPage,
@@ -65,6 +76,10 @@ function BillingPage() {
     useState<SubscriptionWithPlan | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
 
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+
   const [billingType, setBillingType] = useState<BillingType>("PIX");
 
   const [loading, setLoading] = useState(true);
@@ -93,15 +108,28 @@ function BillingPage() {
 
         setCompany(userCompany);
 
-        const [plansData, subscriptionData, paymentsData] = await Promise.all([
+        const [
+          plansData,
+          subscriptionData,
+          paymentsData,
+          leadsData,
+          servicesData,
+          templatesData,
+        ] = await Promise.all([
           getPlans(),
           getCurrentSubscription(userCompany.id),
           getPayments(userCompany.id),
+          getLeads(userCompany.id),
+          getServices(userCompany.id),
+          getMessageTemplates(userCompany.id),
         ]);
 
         setPlans(plansData);
         setSubscription(subscriptionData);
         setPayments(paymentsData);
+        setLeads(leadsData);
+        setServices(servicesData);
+        setTemplates(templatesData);
       } catch (error) {
         console.error(error);
         setErrorMessage("Erro ao carregar informações de assinatura.");
@@ -246,7 +274,7 @@ function BillingPage() {
     <DashboardLayout
       companyName={company?.name}
       pageTitle="Billing"
-      pageDescription="Gerencie plano, assinatura mensal e histórico de pagamentos."
+      pageDescription="Gerencie plano, assinatura mensal, uso e histórico de pagamentos."
     >
       {errorMessage && (
         <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -385,36 +413,45 @@ function BillingPage() {
           </div>
 
           {currentPlanAccess && (
-            <div className="mt-5 grid gap-3 rounded-3xl border border-slate-200 bg-white p-5">
-              <p className="text-sm font-bold text-slate-950">
-                Limites do plano atual
-              </p>
+            <div className="mt-5 grid gap-4 rounded-3xl border border-slate-200 bg-white p-5">
+              <div>
+                <p className="text-sm font-bold text-slate-950">
+                  Uso do plano
+                </p>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <MiniLimitCard
-                  label="Leads"
-                  value={formatLimit(currentPlanAccess.maxLeads)}
-                />
-
-                <MiniLimitCard
-                  label="Usuários"
-                  value={formatLimit(currentPlanAccess.maxUsers)}
-                />
-
-                <MiniLimitCard
-                  label="Serviços"
-                  value={formatLimit(currentPlanAccess.maxServices)}
-                />
-
-                <MiniLimitCard
-                  label="Automações"
-                  value={
-                    currentPlanAccess.canUseAutomations
-                      ? formatLimit(currentPlanAccess.maxAutomations)
-                      : "Bloqueado"
-                  }
-                />
+                <p className="mt-1 text-sm text-slate-500">
+                  Acompanhe quanto sua empresa já utilizou dentro da assinatura
+                  atual.
+                </p>
               </div>
+
+              <PlanUsageRow
+                label="Leads"
+                used={leads.length}
+                limit={currentPlanAccess.maxLeads}
+              />
+
+              <PlanUsageRow
+                label="Serviços"
+                used={services.length}
+                limit={currentPlanAccess.maxServices}
+              />
+
+              <PlanUsageRow
+                label="Mensagens prontas"
+                used={templates.length}
+                limit={currentPlanAccess.maxMessageTemplates}
+              />
+
+              <PlanUsageRow
+                label="Automações"
+                used={0}
+                limit={
+                  currentPlanAccess.canUseAutomations
+                    ? currentPlanAccess.maxAutomations
+                    : 0
+                }
+              />
             </div>
           )}
 
@@ -595,11 +632,13 @@ function BillingPage() {
                       value={formatLimit(access.maxLeads)}
                       dark={isBusiness}
                     />
+
                     <PlanHighlight
                       label="Usuários"
                       value={formatLimit(access.maxUsers)}
                       dark={isBusiness}
                     />
+
                     <PlanHighlight
                       label="Automações"
                       value={
@@ -624,6 +663,7 @@ function BillingPage() {
                             isBusiness ? "text-emerald-300" : "text-emerald-600"
                           }`}
                         />
+
                         <span>{feature}</span>
                       </div>
                     ))}
@@ -668,6 +708,7 @@ function BillingPage() {
 
           <div>
             <h2 className="text-lg font-bold">Histórico de pagamentos</h2>
+
             <p className="text-sm text-slate-500">
               Pagamentos registrados para esta empresa.
             </p>
@@ -810,15 +851,7 @@ function getPlanBenefits(plan: Plan, access: PlanAccessView) {
 }
 
 function formatLimit(value?: number) {
-  if (typeof value !== "number") {
-    return "—";
-  }
-
-  if (value >= 10000) {
-    return "10k+";
-  }
-
-  return new Intl.NumberFormat("pt-BR").format(value);
+  return formatPlanLimit(value);
 }
 
 function MetricCard(props: {
@@ -854,13 +887,67 @@ function MetricCard(props: {
   );
 }
 
-function MiniLimitCard(props: { label: string; value: string }) {
+function PlanUsageRow(props: {
+  label: string;
+  used: number;
+  limit?: number;
+}) {
+  const unlimited = isUnlimitedLimit(props.limit);
+  const blocked = !unlimited && props.limit === 0;
+
+  const percent =
+    unlimited || blocked || !props.limit
+      ? 0
+      : Math.min((props.used / props.limit) * 100, 100);
+
+  const nearLimit = !unlimited && !blocked && percent >= 80;
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-        {props.label}
-      </p>
-      <p className="mt-1 font-bold text-slate-950">{props.value}</p>
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+      <div className="mb-3 flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-slate-950">
+            {props.label}
+          </p>
+
+          <p className="mt-1 text-xs text-slate-500">
+            {blocked
+              ? "Recurso não incluso neste plano"
+              : unlimited
+                ? `${props.used} usados / ilimitado`
+                : `${props.used} usados / ${formatPlanLimit(props.limit)}`}
+          </p>
+        </div>
+
+        {nearLimit && (
+          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">
+            Perto do limite
+          </span>
+        )}
+
+        {blocked && (
+          <span className="rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-600">
+            Bloqueado
+          </span>
+        )}
+
+        {unlimited && (
+          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+            Ilimitado
+          </span>
+        )}
+      </div>
+
+      <div className="h-2.5 overflow-hidden rounded-full bg-slate-200">
+        <div
+          className={`h-full rounded-full transition-all ${
+            nearLimit ? "bg-amber-500" : "bg-indigo-600"
+          }`}
+          style={{
+            width: unlimited ? "100%" : `${percent}%`,
+          }}
+        />
+      </div>
     </div>
   );
 }
@@ -875,6 +962,7 @@ function PlanHighlight(props: {
       <span className={props.dark ? "text-slate-300" : "text-slate-500"}>
         {props.label}
       </span>
+
       <span
         className={`font-bold ${
           props.dark ? "text-white" : "text-slate-950"
@@ -890,6 +978,7 @@ function InfoRow(props: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
       <span className="text-slate-500">{props.label}</span>
+
       <span className="text-right font-semibold text-slate-900">
         {props.value}
       </span>
