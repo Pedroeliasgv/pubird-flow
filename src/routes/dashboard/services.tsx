@@ -1,7 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   BriefcaseBusiness,
+  Crown,
   Loader2,
   Pencil,
   Plus,
@@ -26,6 +27,8 @@ import {
   serviceStatusLabels,
   updateService,
 } from "../../lib/services";
+import { useCurrentPlan } from "../../hooks/useCurrentPlan";
+import { canCreateService, getPlanAccess } from "../../lib/planAccess";
 
 export const Route = createFileRoute("/dashboard/services")({
   component: ServicesPage,
@@ -33,6 +36,13 @@ export const Route = createFileRoute("/dashboard/services")({
 
 function ServicesPage() {
   const navigate = useNavigate();
+
+  const {
+    loading: loadingPlan,
+    planSlug,
+    planName,
+    isActive,
+  } = useCurrentPlan();
 
   const [company, setCompany] = useState<Company | null>(null);
   const [services, setServices] = useState<Service[]>([]);
@@ -103,6 +113,20 @@ function ServicesPage() {
     });
   }, [services, search, statusFilter]);
 
+  const planAccess = useMemo(() => {
+    return getPlanAccess(planSlug);
+  }, [planSlug]);
+
+  const serviceLimit = planAccess.maxServices;
+  const servicesUsed = services.length;
+  const canAddService =
+    isActive && canCreateService(planSlug, servicesUsed);
+
+  const serviceUsagePercent =
+    serviceLimit > 0
+      ? Math.min((servicesUsed / serviceLimit) * 100, 100)
+      : 0;
+
   function resetForm() {
     setEditingService(null);
     setName("");
@@ -113,6 +137,15 @@ function ServicesPage() {
   }
 
   function openCreateForm() {
+    if (!canAddService) {
+      setErrorMessage(
+        `Limite de serviços atingido no plano ${
+          planName || "atual"
+        }. Faça upgrade para cadastrar mais serviços.`
+      );
+      return;
+    }
+
     resetForm();
     setIsFormOpen(true);
   }
@@ -131,6 +164,15 @@ function ServicesPage() {
     event.preventDefault();
 
     if (!company) {
+      return;
+    }
+
+    if (!editingService && !canAddService) {
+      setErrorMessage(
+        `Limite de serviços atingido no plano ${
+          planName || "atual"
+        }. Faça upgrade para cadastrar mais serviços.`
+      );
       return;
     }
 
@@ -206,7 +248,7 @@ function ServicesPage() {
     }
   }
 
-  if (loading) {
+  if (loading || loadingPlan) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-950">
         <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-slate-600 shadow-sm">
@@ -235,27 +277,71 @@ function ServicesPage() {
         </div>
       )}
 
+      <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+              <Crown className="h-3.5 w-3.5" />
+              Plano {planName || "atual"}
+            </div>
+
+            <h2 className="text-xl font-bold text-slate-950">
+              Uso de serviços: {servicesUsed} /{" "}
+              {serviceLimit >= 100 ? "100+" : serviceLimit}
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              {canAddService
+                ? "Você ainda pode cadastrar novos serviços dentro do limite do seu plano."
+                : "Você atingiu o limite de serviços do seu plano atual."}
+            </p>
+          </div>
+
+          {!canAddService && (
+            <Link
+              to="/dashboard/billing"
+              className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              Fazer upgrade
+            </Link>
+          )}
+        </div>
+
+        <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className={`h-full rounded-full transition-all ${
+              serviceUsagePercent >= 100 ? "bg-red-500" : "bg-indigo-600"
+            }`}
+            style={{ width: `${serviceUsagePercent}%` }}
+          />
+        </div>
+      </div>
+
       <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div className="grid gap-3 sm:grid-cols-3">
           <MiniMetric label="Total" value={services.length} />
+
           <MiniMetric
             label="Ativos"
             value={services.filter((service) => service.status === "active").length}
           />
+
           <MiniMetric
             label="Inativos"
             value={
-              services.filter((service) => service.status === "inactive").length
+              services.filter((service) => service.status === "inactive")
+                .length
             }
           />
         </div>
 
         <button
           onClick={openCreateForm}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+          disabled={!canAddService}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus className="h-4 w-4" />
-          Novo serviço
+          {canAddService ? "Novo serviço" : "Limite atingido"}
         </button>
       </div>
 
@@ -263,6 +349,7 @@ function ServicesPage() {
         <div className="grid gap-3 md:grid-cols-[1fr_220px]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
             <input
               className="input-light pl-11"
               placeholder="Buscar por nome ou descrição"
@@ -279,6 +366,7 @@ function ServicesPage() {
             }
           >
             <option value="all">Todos os status</option>
+
             {Object.entries(serviceStatusLabels).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
@@ -304,9 +392,10 @@ function ServicesPage() {
 
             <button
               onClick={openCreateForm}
-              className="mt-5 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              disabled={!canAddService}
+              className="mt-5 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Cadastrar serviço
+              {canAddService ? "Cadastrar serviço" : "Limite atingido"}
             </button>
           </div>
         ) : (
@@ -376,6 +465,7 @@ function ServicesPage() {
                 <h2 className="text-2xl font-bold">
                   {editingService ? "Editar serviço" : "Novo serviço"}
                 </h2>
+
                 <p className="mt-1 text-sm text-slate-500">
                   Cadastre os serviços que poderão aparecer na página pública.
                 </p>
@@ -480,6 +570,7 @@ function MiniMetric(props: { label: string; value: number }) {
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
         {props.label}
       </p>
+
       <p className="mt-1 text-2xl font-bold text-slate-950">{props.value}</p>
     </div>
   );
@@ -496,6 +587,7 @@ function Field(props: {
         {props.label}
         {props.required && <span className="text-indigo-600"> *</span>}
       </span>
+
       {props.children}
     </label>
   );
