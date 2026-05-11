@@ -24,10 +24,13 @@ export type PlanAccess = {
   benefits: string[];
 };
 
+export const UNLIMITED_LIMIT = 999999;
+
 export const planAccess: Record<string, PlanAccess> = {
   starter: {
     label: "Starter",
-    description: "Para começar a organizar leads, serviços e follow-ups básicos.",
+    description:
+      "Para começar a organizar leads, serviços e follow-ups básicos.",
 
     maxLeads: 100,
     maxUsers: 1,
@@ -60,7 +63,8 @@ export const planAccess: Record<string, PlanAccess> = {
 
   pro: {
     label: "Pro",
-    description: "Para empresas que querem organizar vendas, automações e operação comercial.",
+    description:
+      "Para empresas que querem organizar vendas, automações e operação comercial.",
 
     maxLeads: 1000,
     maxUsers: 3,
@@ -95,13 +99,14 @@ export const planAccess: Record<string, PlanAccess> = {
 
   business: {
     label: "Business",
-    description: "Para empresas que querem escalar vendas, conteúdo, equipe e operação digital.",
+    description:
+      "Para empresas que querem escalar vendas, conteúdo, equipe e operação digital com limites expandidos.",
 
-    maxLeads: 10000,
-    maxUsers: 10,
-    maxServices: 100,
-    maxMessageTemplates: 200,
-    maxAutomations: 50,
+    maxLeads: UNLIMITED_LIMIT,
+    maxUsers: UNLIMITED_LIMIT,
+    maxServices: UNLIMITED_LIMIT,
+    maxMessageTemplates: UNLIMITED_LIMIT,
+    maxAutomations: UNLIMITED_LIMIT,
 
     canUseCRM: true,
     canUseFollowUps: true,
@@ -115,15 +120,14 @@ export const planAccess: Record<string, PlanAccess> = {
     canUseCustomBranding: true,
 
     benefits: [
-      "Até 10.000 leads cadastrados",
-      "Até 10 usuários",
-      "CRM completo e avançado",
-      "Automações comerciais avançadas",
-      "Até 100 serviços cadastrados",
-      "Até 200 mensagens prontas",
+      "Leads ilimitados",
+      "Usuários ilimitados",
+      "Serviços ilimitados",
+      "Mensagens prontas ilimitadas",
+      "Automações ilimitadas",
       "Social Studio liberado",
       "Relatórios avançados",
-      "Gestão de equipe",
+      "Gestão de equipe completa",
       "Página pública personalizada",
       "Branding personalizado",
       "Suporte prioritário",
@@ -137,6 +141,26 @@ export function getPlanAccess(planSlug?: PlanSlug | null): PlanAccess {
   }
 
   return planAccess[planSlug] ?? planAccess.starter;
+}
+
+export function isUnlimitedLimit(value?: number) {
+  return typeof value === "number" && value >= UNLIMITED_LIMIT;
+}
+
+export function formatPlanLimit(value?: number) {
+  if (typeof value !== "number") {
+    return "—";
+  }
+
+  if (isUnlimitedLimit(value)) {
+    return "Ilimitado";
+  }
+
+  if (value >= 10000) {
+    return "10k+";
+  }
+
+  return new Intl.NumberFormat("pt-BR").format(value);
 }
 
 export function canUseCRM(planSlug?: PlanSlug | null) {

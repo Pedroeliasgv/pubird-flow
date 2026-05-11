@@ -1,7 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Copy,
+  Crown,
   Loader2,
   MessageCircle,
   Pencil,
@@ -26,6 +27,11 @@ import {
   messageTemplateStatusLabels,
   updateMessageTemplate,
 } from "../../lib/message-templates";
+import { useCurrentPlan } from "../../hooks/useCurrentPlan";
+import {
+  canCreateMessageTemplate,
+  getPlanAccess,
+} from "../../lib/planAccess";
 
 export const Route = createFileRoute("/dashboard/messages")({
   component: MessagesPage,
@@ -33,6 +39,13 @@ export const Route = createFileRoute("/dashboard/messages")({
 
 function MessagesPage() {
   const navigate = useNavigate();
+
+  const {
+    loading: loadingPlan,
+    planSlug,
+    planName,
+    isActive,
+  } = useCurrentPlan();
 
   const [company, setCompany] = useState<Company | null>(null);
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
@@ -115,6 +128,20 @@ function MessagesPage() {
     servico: previewService,
   });
 
+  const planAccess = useMemo(() => {
+    return getPlanAccess(planSlug);
+  }, [planSlug]);
+
+  const templateLimit = planAccess.maxMessageTemplates;
+  const templatesUsed = templates.length;
+  const canAddTemplate =
+    isActive && canCreateMessageTemplate(planSlug, templatesUsed);
+
+  const templateUsagePercent =
+    templateLimit > 0
+      ? Math.min((templatesUsed / templateLimit) * 100, 100)
+      : 0;
+
   function resetForm() {
     setEditingTemplate(null);
     setName("");
@@ -124,6 +151,15 @@ function MessagesPage() {
   }
 
   function openCreateForm() {
+    if (!canAddTemplate) {
+      setErrorMessage(
+        `Limite de mensagens prontas atingido no plano ${
+          planName || "atual"
+        }. Faça upgrade para criar mais mensagens.`
+      );
+      return;
+    }
+
     resetForm();
     setIsFormOpen(true);
   }
@@ -141,6 +177,15 @@ function MessagesPage() {
     event.preventDefault();
 
     if (!company) {
+      return;
+    }
+
+    if (!editingTemplate && !canAddTemplate) {
+      setErrorMessage(
+        `Limite de mensagens prontas atingido no plano ${
+          planName || "atual"
+        }. Faça upgrade para criar mais mensagens.`
+      );
       return;
     }
 
@@ -230,7 +275,7 @@ function MessagesPage() {
     setSuccessMessage("Mensagem copiada.");
   }
 
-  if (loading) {
+  if (loading || loadingPlan) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50 text-slate-950">
         <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-5 py-4 text-slate-600 shadow-sm">
@@ -259,6 +304,46 @@ function MessagesPage() {
         </div>
       )}
 
+      <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+              <Crown className="h-3.5 w-3.5" />
+              Plano {planName || "atual"}
+            </div>
+
+            <h2 className="text-xl font-bold text-slate-950">
+              Uso de mensagens: {templatesUsed} /{" "}
+              {templateLimit >= 200 ? "200+" : templateLimit}
+            </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              {canAddTemplate
+                ? "Você ainda pode criar novas mensagens prontas dentro do limite do seu plano."
+                : "Você atingiu o limite de mensagens prontas do seu plano atual."}
+            </p>
+          </div>
+
+          {!canAddTemplate && (
+            <Link
+              to="/dashboard/billing"
+              className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+            >
+              Fazer upgrade
+            </Link>
+          )}
+        </div>
+
+        <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className={`h-full rounded-full transition-all ${
+              templateUsagePercent >= 100 ? "bg-red-500" : "bg-indigo-600"
+            }`}
+            style={{ width: `${templateUsagePercent}%` }}
+          />
+        </div>
+      </div>
+
       <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div className="grid gap-3 sm:grid-cols-3">
           <MiniMetric label="Total" value={templates.length} />
@@ -276,10 +361,11 @@ function MessagesPage() {
 
         <button
           onClick={openCreateForm}
-          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+          disabled={!canAddTemplate}
+          className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus className="h-4 w-4" />
-          Nova mensagem
+          {canAddTemplate ? "Nova mensagem" : "Limite atingido"}
         </button>
       </div>
 
@@ -299,7 +385,9 @@ function MessagesPage() {
             className="input-light"
             value={channelFilter}
             onChange={(event) =>
-              setChannelFilter(event.target.value as MessageTemplateChannel | "all")
+              setChannelFilter(
+                event.target.value as MessageTemplateChannel | "all"
+              )
             }
           >
             <option value="all">Todos os canais</option>
@@ -316,7 +404,9 @@ function MessagesPage() {
             className="input-light"
             value={statusFilter}
             onChange={(event) =>
-              setStatusFilter(event.target.value as MessageTemplateStatus | "all")
+              setStatusFilter(
+                event.target.value as MessageTemplateStatus | "all"
+              )
             }
           >
             <option value="all">Todos os status</option>
@@ -348,9 +438,10 @@ function MessagesPage() {
 
               <button
                 onClick={openCreateForm}
-                className="mt-5 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                disabled={!canAddTemplate}
+                className="mt-5 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Criar mensagem
+                {canAddTemplate ? "Criar mensagem" : "Limite atingido"}
               </button>
             </div>
           ) : (
@@ -363,8 +454,12 @@ function MessagesPage() {
                   <div className="mb-4 flex items-start justify-between gap-4">
                     <div>
                       <div className="flex flex-wrap gap-2">
-                        <Badge>{messageTemplateChannelLabels[template.channel]}</Badge>
-                        <Badge>{messageTemplateStatusLabels[template.status]}</Badge>
+                        <Badge>
+                          {messageTemplateChannelLabels[template.channel]}
+                        </Badge>
+                        <Badge>
+                          {messageTemplateStatusLabels[template.status]}
+                        </Badge>
                       </div>
 
                       <h3 className="mt-4 text-lg font-bold text-slate-950">
@@ -416,7 +511,10 @@ function MessagesPage() {
           <div className="mt-5 space-y-3">
             <VariableItem value="{nome}" description="Nome do lead" />
             <VariableItem value="{empresa}" description="Nome da empresa" />
-            <VariableItem value="{servico}" description="Serviço de interesse" />
+            <VariableItem
+              value="{servico}"
+              description="Serviço de interesse"
+            />
           </div>
 
           <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -468,7 +566,10 @@ function MessagesPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[1fr_300px]">
+            <form
+              onSubmit={handleSubmit}
+              className="grid gap-6 lg:grid-cols-[1fr_300px]"
+            >
               <div className="space-y-5">
                 <Field label="Nome da mensagem" required>
                   <input
