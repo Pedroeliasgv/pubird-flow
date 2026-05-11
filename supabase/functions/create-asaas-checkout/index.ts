@@ -51,6 +51,75 @@ function isValidDocumentLength(document: string) {
   return document.length === 11 || document.length === 14;
 }
 
+async function cancelAsaasSubscription(asaasSubscriptionId: string) {
+  if (!ASAAS_API_KEY) {
+    throw new Error("ASAAS_API_KEY não configurada.");
+  }
+
+  const response = await fetch(
+    `${ASAAS_API_URL}/subscriptions/${asaasSubscriptionId}`,
+    {
+      method: "DELETE",
+      headers: {
+        "Content-Type": "application/json",
+        access_token: ASAAS_API_KEY,
+      },
+    }
+  );
+
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok) {
+    throw new Error(
+      data?.errors?.[0]?.description ||
+        "Erro ao cancelar assinatura antiga no Asaas."
+    );
+  }
+
+  return data;
+}
+
+async function getFirstSubscriptionPayment(asaasSubscriptionId: string) {
+  if (!ASAAS_API_KEY) {
+    throw new Error("ASAAS_API_KEY não configurada.");
+  }
+
+  const response = await fetch(
+    `${ASAAS_API_URL}/subscriptions/${asaasSubscriptionId}/payments?limit=1`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        access_token: ASAAS_API_KEY,
+      },
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok || !Array.isArray(data.data)) {
+    return null;
+  }
+
+  return data.data[0] ?? null;
+}
+
+function formatPayment(payment: any) {
+  if (!payment) {
+    return null;
+  }
+
+  return {
+    id: payment.id,
+    status: payment.status,
+    invoiceUrl: payment.invoiceUrl,
+    bankSlipUrl: payment.bankSlipUrl,
+    transactionReceiptUrl: payment.transactionReceiptUrl,
+    dueDate: payment.dueDate,
+    value: payment.value,
+  };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -154,6 +223,87 @@ serve(async (req) => {
       return jsonResponse({ error: "Plano não encontrado." }, 404);
     }
 
+    const { data: existingSubscription, error: existingSubscriptionError } =
+      await supabase
+        .from("subscriptions")
+        .select("*, plans(*)")
+        .eq("company_id", companyId)
+        .in("status", ["pending", "active", "trialing", "past_due"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (existingSubscriptionError) {
+      return jsonResponse(
+        {
+          error: "Erro ao verificar assinatura existente.",
+          details: existingSubscriptionError,
+        },
+        500
+      );
+    }
+
+    if (
+      existingSubscription?.status === "active" &&
+      existingSubscription.plan_id === plan.id
+    ) {
+      return jsonResponse(
+        {
+          error: "Esta empresa já está nesse plano.",
+          subscription: existingSubscription,
+        },
+        400
+      );
+    }
+
+    if (
+      existingSubscription?.status === "pending" &&
+      existingSubscription.plan_id === plan.id &&
+      existingSubscription.asaas_subscription_id
+    ) {
+      const firstExistingPayment = await getFirstSubscriptionPayment(
+        existingSubscription.asaas_subscription_id
+      );
+
+      return jsonResponse({
+        message: "Já existe uma cobrança pendente para este plano.",
+        subscription: existingSubscription,
+        asaas: {
+          id: existingSubscription.asaas_subscription_id,
+          payment: formatPayment(firstExistingPayment),
+        },
+      });
+    }
+
+    if (
+      existingSubscription &&
+      existingSubscription.plan_id !== plan.id &&
+      existingSubscription.asaas_subscription_id
+    ) {
+      try {
+        await cancelAsaasSubscription(existingSubscription.asaas_subscription_id);
+
+        await supabase
+          .from("subscriptions")
+          .update({
+            status: "cancelled",
+            cancelled_at: new Date().toISOString(),
+            cancel_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existingSubscription.id);
+      } catch (error) {
+        return jsonResponse(
+          {
+            error:
+              "Erro ao cancelar assinatura anterior antes de trocar de plano.",
+            details: error instanceof Error ? error.message : String(error),
+          },
+          400
+        );
+      }
+    }
+
     let asaasCustomerId = company.asaas_customer_id;
 
     if (!asaasCustomerId) {
@@ -236,24 +386,7 @@ serve(async (req) => {
       );
     }
 
-    const paymentsResponse = await fetch(
-      `${ASAAS_API_URL}/subscriptions/${subscriptionData.id}/payments?limit=1`,
-      {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          access_token: ASAAS_API_KEY,
-        },
-      }
-    );
-
-    const paymentsData = await paymentsResponse.json();
-
-    let firstPayment = null;
-
-    if (paymentsResponse.ok && Array.isArray(paymentsData.data)) {
-      firstPayment = paymentsData.data[0] ?? null;
-    }
+    const firstPayment = await getFirstSubscriptionPayment(subscriptionData.id);
 
     const { data: localSubscription, error: localSubscriptionError } =
       await supabase
@@ -283,7 +416,10 @@ serve(async (req) => {
     }
 
     return jsonResponse({
-      message: "Assinatura criada com sucesso.",
+      message:
+        existingSubscription && existingSubscription.plan_id !== plan.id
+          ? "Troca de plano iniciada com sucesso."
+          : "Assinatura criada com sucesso.",
       subscription: localSubscription,
       asaas: {
         id: subscriptionData.id,
@@ -291,17 +427,7 @@ serve(async (req) => {
         billingType: subscriptionData.billingType,
         value: subscriptionData.value,
         status: subscriptionData.status,
-        payment: firstPayment
-          ? {
-              id: firstPayment.id,
-              status: firstPayment.status,
-              invoiceUrl: firstPayment.invoiceUrl,
-              bankSlipUrl: firstPayment.bankSlipUrl,
-              transactionReceiptUrl: firstPayment.transactionReceiptUrl,
-              dueDate: firstPayment.dueDate,
-              value: firstPayment.value,
-            }
-          : null,
+        payment: formatPayment(firstPayment),
       },
     });
   } catch (error) {

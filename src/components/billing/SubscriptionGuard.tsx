@@ -48,6 +48,10 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
         const user = await getCurrentUser();
 
         if (!user) {
+          if (isMounted) {
+            setChecking(false);
+          }
+
           navigate({ to: "/login" });
           return;
         }
@@ -55,13 +59,27 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
         const company = await getUserCompany(user.id);
 
         if (!company) {
+          if (isMounted) {
+            setChecking(false);
+          }
+
           navigate({ to: "/dashboard/onboarding" });
           return;
         }
 
         const subscription = await getCurrentSubscription(company.id);
 
+        console.log("SubscriptionGuard:", {
+          pathname,
+          companyId: company.id,
+          subscription,
+        });
+
         if (!subscription || subscription.status !== "active") {
+          if (isMounted) {
+            setChecking(false);
+          }
+
           navigate({
             to: "/dashboard/billing",
           });
@@ -74,6 +92,10 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
         }
       } catch (error) {
         console.error("Erro ao validar assinatura:", error);
+
+        if (isMounted) {
+          setChecking(false);
+        }
 
         navigate({
           to: "/dashboard/billing",

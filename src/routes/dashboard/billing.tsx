@@ -17,6 +17,7 @@ import { getCurrentUser } from "../../lib/auth";
 import { Company, getUserCompany } from "../../lib/company";
 import {
   cancelSubscription,
+  formatBillingType,
   formatCurrency,
   getCurrentSubscription,
   getPayments,
@@ -100,6 +101,22 @@ function BillingPage() {
   const currentPlan = useMemo(() => {
     return subscription?.plans || null;
   }, [subscription]);
+
+  const pendingPaymentUrl = useMemo(() => {
+    const paymentWithUrl = payments.find(
+      (payment) =>
+        payment.invoice_url || payment.bank_slip_url || payment.receipt_url
+    );
+
+    return (
+      paymentWithUrl?.invoice_url ||
+      paymentWithUrl?.bank_slip_url ||
+      paymentWithUrl?.receipt_url ||
+      null
+    );
+  }, [payments]);
+
+  const hasPendingSubscription = subscription?.status === "pending";
 
   async function handleSubscribe(plan: Plan) {
     if (!company) {
@@ -216,6 +233,43 @@ function BillingPage() {
       {successMessage && (
         <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
           {successMessage}
+        </div>
+      )}
+
+      {hasPendingSubscription && (
+        <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="font-bold">Pagamento pendente</p>
+
+              <p className="mt-1 leading-6">
+                Sua assinatura foi criada, mas o pagamento ainda não foi
+                confirmado. Finalize o pagamento para liberar o CRM completo.
+              </p>
+            </div>
+
+            {pendingPaymentUrl ? (
+              <a
+                href={pendingPaymentUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+              >
+                Continuar pagamento
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={() => currentPlan && handleSubscribe(currentPlan)}
+                disabled={!currentPlan || processingPlanId === currentPlan?.id}
+                className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {processingPlanId === currentPlan?.id
+                  ? "Buscando cobrança..."
+                  : "Gerar link de pagamento"}
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -379,6 +433,10 @@ function BillingPage() {
           <div className="grid gap-4 lg:grid-cols-3">
             {plans.map((plan) => {
               const isCurrent = currentPlanId === plan.id;
+              const isProcessing = processingPlanId === plan.id;
+              const shouldDisableButton =
+                (isCurrent && subscription?.status !== "pending") ||
+                isProcessing;
 
               return (
                 <article
@@ -392,7 +450,9 @@ function BillingPage() {
                   {isCurrent && (
                     <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white">
                       <BadgeCheck className="h-3.5 w-3.5" />
-                      Plano atual
+                      {subscription?.status === "pending"
+                        ? "Pagamento pendente"
+                        : "Plano atual"}
                     </div>
                   )}
 
@@ -435,18 +495,22 @@ function BillingPage() {
                   <button
                     type="button"
                     onClick={() => handleSubscribe(plan)}
-                    disabled={isCurrent || processingPlanId === plan.id}
+                    disabled={shouldDisableButton}
                     className={`mt-6 flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
                       isCurrent
                         ? "bg-indigo-600 text-white"
                         : "bg-slate-950 text-white hover:bg-slate-800"
                     }`}
                   >
-                    {processingPlanId === plan.id && (
+                    {isProcessing && (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     )}
 
-                    {isCurrent ? "Plano atual" : "Assinar plano"}
+                    {isCurrent
+                      ? subscription?.status === "pending"
+                        ? "Continuar pagamento"
+                        : "Plano atual"
+                      : "Assinar plano"}
                   </button>
                 </article>
               );
@@ -486,7 +550,7 @@ function BillingPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-left text-sm">
+            <table className="w-full min-w-[860px] text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="px-5 py-4">Valor</th>
@@ -494,39 +558,69 @@ function BillingPage() {
                   <th className="px-5 py-4">Método</th>
                   <th className="px-5 py-4">Vencimento</th>
                   <th className="px-5 py-4">Pago em</th>
+                  <th className="px-5 py-4">Ação</th>
                 </tr>
               </thead>
 
               <tbody className="divide-y divide-slate-100">
-                {payments.map((payment) => (
-                  <tr key={payment.id}>
-                    <td className="px-5 py-4 font-semibold text-slate-950">
-                      {formatCurrency(Number(payment.amount))}
-                    </td>
+                {payments.map((payment) => {
+                  const dueDate = payment.due_date || payment.due_at;
+                  const paymentUrl =
+                    payment.invoice_url ||
+                    payment.bank_slip_url ||
+                    payment.receipt_url;
 
-                    <td className="px-5 py-4">
-                      <PaymentStatusBadge status={payment.status}>
-                        {paymentStatusLabels[payment.status]}
-                      </PaymentStatusBadge>
-                    </td>
+                  return (
+                    <tr key={payment.id}>
+                      <td className="px-5 py-4 font-semibold text-slate-950">
+                        {formatCurrency(Number(payment.amount))}
+                      </td>
 
-                    <td className="px-5 py-4 text-slate-600">
-                      {payment.payment_method || "Não informado"}
-                    </td>
+                      <td className="px-5 py-4">
+                        <PaymentStatusBadge status={payment.status}>
+                          {paymentStatusLabels[payment.status]}
+                        </PaymentStatusBadge>
+                      </td>
 
-                    <td className="px-5 py-4 text-slate-600">
-                      {payment.due_at
-                        ? new Date(payment.due_at).toLocaleDateString("pt-BR")
-                        : "Sem vencimento"}
-                    </td>
+                      <td className="px-5 py-4 text-slate-600">
+                        {formatBillingType(
+                          payment.billing_type || payment.payment_method
+                        )}
+                      </td>
 
-                    <td className="px-5 py-4 text-slate-600">
-                      {payment.paid_at
-                        ? new Date(payment.paid_at).toLocaleDateString("pt-BR")
-                        : "Não pago"}
-                    </td>
-                  </tr>
-                ))}
+                      <td className="px-5 py-4 text-slate-600">
+                        {dueDate
+                          ? new Date(dueDate).toLocaleDateString("pt-BR")
+                          : "Sem vencimento"}
+                      </td>
+
+                      <td className="px-5 py-4 text-slate-600">
+                        {payment.paid_at
+                          ? new Date(payment.paid_at).toLocaleDateString(
+                              "pt-BR"
+                            )
+                          : "Não pago"}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        {paymentUrl ? (
+                          <a
+                            href={paymentUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center justify-center rounded-xl bg-slate-950 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800"
+                          >
+                            Ver cobrança
+                          </a>
+                        ) : (
+                          <span className="text-xs text-slate-400">
+                            Indisponível
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -594,6 +688,7 @@ function StatusBadge(props: {
   children: React.ReactNode;
 }) {
   const styles: Record<SubscriptionWithPlan["status"], string> = {
+    pending: "bg-amber-100 text-amber-700",
     trialing: "bg-blue-100 text-blue-700",
     active: "bg-emerald-100 text-emerald-700",
     past_due: "bg-amber-100 text-amber-700",
