@@ -5,6 +5,7 @@ import {
   CalendarClock,
   CheckCircle2,
   Clock,
+  Loader2,
   LockKeyhole,
   MessageCircle,
   MousePointerClick,
@@ -12,7 +13,10 @@ import {
   Workflow,
 } from "lucide-react";
 
+import { PlanFeatureGuard } from "../../components/billing/PlanFeatureGuard";
 import { DashboardLayout } from "../../components/dashboard/DashboardLayout";
+import { useCurrentPlan } from "../../hooks/useCurrentPlan";
+import { canUseAutomations } from "../../lib/planAccess";
 
 export const Route = createFileRoute("/dashboard/automations")({
   component: AutomationsPage,
@@ -82,6 +86,8 @@ const automations = [
 ];
 
 function AutomationsPage() {
+  const { loading, planSlug } = useCurrentPlan();
+
   const activeAutomations = automations.filter(
     (automation) => automation.status === "active"
   ).length;
@@ -90,171 +96,194 @@ function AutomationsPage() {
     (automation) => automation.status === "soon"
   ).length;
 
+  if (loading) {
+    return (
+      <DashboardLayout
+        pageTitle="Automações"
+        pageDescription="Veja quais fluxos automáticos estão ajudando sua empresa a organizar leads, tarefas e vendas."
+      >
+        <div className="flex min-h-72 items-center justify-center rounded-[2rem] border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center gap-3 text-sm text-slate-500">
+            <Loader2 className="h-5 w-5 animate-spin text-indigo-600" />
+            Verificando plano...
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout
       pageTitle="Automações"
       pageDescription="Veja quais fluxos automáticos estão ajudando sua empresa a organizar leads, tarefas e vendas."
     >
-      <div className="grid gap-4 md:grid-cols-3">
-        <MetricCard
-          label="Automações ativas"
-          value={activeAutomations}
-          icon={<Workflow className="h-5 w-5" />}
-          active
-        />
+      <PlanFeatureGuard
+        allowed={canUseAutomations(planSlug)}
+        requiredPlan="Pro"
+        title="Automações disponíveis a partir do plano Pro"
+        description="O plano Starter permite organizar leads e mensagens, mas as automações comerciais ficam disponíveis apenas nos planos Pro e Business."
+      >
+        <div className="grid gap-4 md:grid-cols-3">
+          <MetricCard
+            label="Automações ativas"
+            value={activeAutomations}
+            icon={<Workflow className="h-5 w-5" />}
+            active
+          />
 
-        <MetricCard
-          label="Em breve"
-          value={soonAutomations}
-          icon={<Sparkles className="h-5 w-5" />}
-        />
+          <MetricCard
+            label="Em breve"
+            value={soonAutomations}
+            icon={<Sparkles className="h-5 w-5" />}
+          />
 
-        <MetricCard
-          label="Impacto principal"
-          value="Follow-up"
-          icon={<CalendarClock className="h-5 w-5" />}
-        />
-      </div>
+          <MetricCard
+            label="Impacto principal"
+            value="Follow-up"
+            icon={<CalendarClock className="h-5 w-5" />}
+          />
+        </div>
 
-      <div className="mt-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-          <div>
-            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-              <Sparkles className="h-3.5 w-3.5" />
-              Automação real ativa
+        <div className="mt-6 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+            <div>
+              <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+                <Sparkles className="h-3.5 w-3.5" />
+                Automação real ativa
+              </div>
+
+              <h2 className="text-3xl font-bold tracking-tight text-slate-950">
+                Seu sistema já cria follow-ups automaticamente quando um lead
+                entra pela página pública.
+              </h2>
+
+              <p className="mt-4 leading-7 text-slate-600">
+                Isso significa que o lead não fica perdido. Assim que alguém
+                preenche o formulário público da empresa, o Pubird Flow cria o
+                contato no CRM e gera uma tarefa para a equipe retornar.
+              </p>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <a
+                  href="/dashboard/follow-up"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
+                >
+                  Ver follow-ups
+                  <ArrowRight className="h-4 w-4" />
+                </a>
+
+                <a
+                  href="/dashboard/leads"
+                  className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                >
+                  Ver leads
+                </a>
+              </div>
             </div>
 
-            <h2 className="text-3xl font-bold tracking-tight text-slate-950">
-              Seu sistema já cria follow-ups automaticamente quando um lead
-              entra pela página pública.
-            </h2>
+            <div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-5">
+              <div className="grid gap-4">
+                <FlowStep
+                  number="01"
+                  title="Visitante preenche a página pública"
+                  description="A pessoa envia nome, WhatsApp, serviço de interesse e mensagem."
+                />
 
-            <p className="mt-4 leading-7 text-slate-600">
-              Isso significa que o lead não fica perdido. Assim que alguém
-              preenche o formulário público da empresa, o Pubird Flow cria o
-              contato no CRM e gera uma tarefa para a equipe retornar.
-            </p>
+                <FlowConnector />
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-              <a
-                href="/dashboard/follow-up"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                Ver follow-ups
-                <ArrowRight className="h-4 w-4" />
-              </a>
+                <FlowStep
+                  number="02"
+                  title="Lead entra automaticamente no CRM"
+                  description="O contato é salvo com origem Página Pública e status Novo."
+                />
 
-              <a
-                href="/dashboard/leads"
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
-              >
-                Ver leads
-              </a>
-            </div>
-          </div>
+                <FlowConnector />
 
-          <div className="rounded-[2rem] border border-slate-200 bg-slate-50 p-5">
-            <div className="grid gap-4">
-              <FlowStep
-                number="01"
-                title="Visitante preenche a página pública"
-                description="A pessoa envia nome, WhatsApp, serviço de interesse e mensagem."
-              />
-
-              <FlowConnector />
-
-              <FlowStep
-                number="02"
-                title="Lead entra automaticamente no CRM"
-                description="O contato é salvo com origem Página Pública e status Novo."
-              />
-
-              <FlowConnector />
-
-              <FlowStep
-                number="03"
-                title="Follow-up é criado sozinho"
-                description="O sistema cria uma tarefa com prioridade alta para retorno comercial."
-              />
+                <FlowStep
+                  number="03"
+                  title="Follow-up é criado sozinho"
+                  description="O sistema cria uma tarefa com prioridade alta para retorno comercial."
+                />
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="mt-6 grid gap-4 xl:grid-cols-2">
-        {automations.map((automation) => {
-          const Icon = automation.icon;
-          const isActive = automation.status === "active";
+        <div className="mt-6 grid gap-4 xl:grid-cols-2">
+          {automations.map((automation) => {
+            const Icon = automation.icon;
+            const isActive = automation.status === "active";
 
-          return (
-            <article
-              key={automation.title}
-              className={`rounded-[2rem] border p-6 shadow-sm ${
-                isActive
-                  ? "border-emerald-200 bg-emerald-50"
-                  : "border-slate-200 bg-white"
-              }`}
-            >
-              <div className="mb-5 flex items-start justify-between gap-4">
-                <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
-                    isActive
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  <Icon className="h-6 w-6" />
+            return (
+              <article
+                key={automation.title}
+                className={`rounded-[2rem] border p-6 shadow-sm ${
+                  isActive
+                    ? "border-emerald-200 bg-emerald-50"
+                    : "border-slate-200 bg-white"
+                }`}
+              >
+                <div className="mb-5 flex items-start justify-between gap-4">
+                  <div
+                    className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+                      isActive
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    <Icon className="h-6 w-6" />
+                  </div>
+
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      isActive
+                        ? "bg-emerald-600 text-white"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    {automation.badge}
+                  </span>
                 </div>
 
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    isActive
-                      ? "bg-emerald-600 text-white"
-                      : "bg-slate-100 text-slate-600"
-                  }`}
-                >
-                  {automation.badge}
-                </span>
-              </div>
+                <h3 className="text-xl font-bold tracking-tight text-slate-950">
+                  {automation.title}
+                </h3>
 
-              <h3 className="text-xl font-bold tracking-tight text-slate-950">
-                {automation.title}
-              </h3>
+                <p className="mt-3 leading-7 text-slate-600">
+                  {automation.description}
+                </p>
 
-              <p className="mt-3 leading-7 text-slate-600">
-                {automation.description}
-              </p>
+                <div className="mt-6 grid gap-3">
+                  <AutomationDetail
+                    label="Gatilho"
+                    value={automation.trigger}
+                    icon={<MousePointerClick className="h-4 w-4" />}
+                  />
 
-              <div className="mt-6 grid gap-3">
-                <AutomationDetail
-                  label="Gatilho"
-                  value={automation.trigger}
-                  icon={<MousePointerClick className="h-4 w-4" />}
-                />
+                  <AutomationDetail
+                    label="Ação"
+                    value={automation.action}
+                    icon={<Workflow className="h-4 w-4" />}
+                  />
 
-                <AutomationDetail
-                  label="Ação"
-                  value={automation.action}
-                  icon={<Workflow className="h-4 w-4" />}
-                />
-
-                <AutomationDetail
-                  label="Impacto"
-                  value={automation.impact}
-                  icon={<Sparkles className="h-4 w-4" />}
-                />
-              </div>
-
-              {!isActive && (
-                <div className="mt-5 flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-                  <LockKeyhole className="h-4 w-4" />
-                  Essa automação será liberada em uma próxima versão.
+                  <AutomationDetail
+                    label="Impacto"
+                    value={automation.impact}
+                    icon={<Sparkles className="h-4 w-4" />}
+                  />
                 </div>
-              )}
-            </article>
-          );
-        })}
-      </div>
+
+                {!isActive && (
+                  <div className="mt-5 flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                    <LockKeyhole className="h-4 w-4" />
+                    Essa automação será liberada em uma próxima versão.
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      </PlanFeatureGuard>
     </DashboardLayout>
   );
 }
@@ -323,9 +352,7 @@ function FlowStep(props: {
 }
 
 function FlowConnector() {
-  return (
-    <div className="ml-5 h-7 w-px bg-slate-200" />
-  );
+  return <div className="ml-5 h-7 w-px bg-slate-200" />;
 }
 
 function AutomationDetail(props: {
