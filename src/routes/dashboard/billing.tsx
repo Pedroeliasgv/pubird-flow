@@ -34,10 +34,27 @@ import {
   createAsaasCheckout,
   PlanSlug,
 } from "../../services/asaas";
+import { getPlanAccess } from "../../lib/planAccess";
 
 export const Route = createFileRoute("/dashboard/billing")({
   component: BillingPage,
 });
+
+type PlanAccessView = {
+  label?: string;
+  description?: string;
+  benefits?: string[];
+  maxLeads?: number;
+  maxUsers?: number;
+  maxServices?: number;
+  maxMessageTemplates?: number;
+  maxAutomations?: number;
+  canUseAutomations?: boolean;
+  canUseSocialStudio?: boolean;
+  canUseAdvancedReports?: boolean;
+  canUsePrioritySupport?: boolean;
+  canUseCustomBranding?: boolean;
+};
 
 function BillingPage() {
   const navigate = useNavigate();
@@ -102,6 +119,12 @@ function BillingPage() {
     return subscription?.plans || null;
   }, [subscription]);
 
+  const currentPlanAccess = useMemo(() => {
+    return currentPlan
+      ? (getPlanAccess(currentPlan.slug) as PlanAccessView)
+      : null;
+  }, [currentPlan]);
+
   const pendingPaymentUrl = useMemo(() => {
     const paymentWithUrl = payments.find(
       (payment) =>
@@ -135,8 +158,9 @@ function BillingPage() {
       return;
     }
 
+    const actionLabel = currentPlan ? "trocar para" : "assinar";
     const confirmed = window.confirm(
-      `Confirmar assinatura do plano ${plan.name}?`
+      `Confirmar ${actionLabel} o plano ${plan.name}?`
     );
 
     if (!confirmed) {
@@ -302,7 +326,7 @@ function BillingPage() {
         />
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <div className="mt-6 grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
         <section className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
@@ -316,7 +340,8 @@ function BillingPage() {
               </h2>
 
               <p className="mt-2 leading-7 text-slate-500">
-                {currentPlan?.description ||
+                {currentPlanAccess?.description ||
+                  currentPlan?.description ||
                   "Escolha um plano para liberar a estrutura comercial do Pubird Flow."}
               </p>
             </div>
@@ -359,6 +384,40 @@ function BillingPage() {
             </div>
           </div>
 
+          {currentPlanAccess && (
+            <div className="mt-5 grid gap-3 rounded-3xl border border-slate-200 bg-white p-5">
+              <p className="text-sm font-bold text-slate-950">
+                Limites do plano atual
+              </p>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <MiniLimitCard
+                  label="Leads"
+                  value={formatLimit(currentPlanAccess.maxLeads)}
+                />
+
+                <MiniLimitCard
+                  label="Usuários"
+                  value={formatLimit(currentPlanAccess.maxUsers)}
+                />
+
+                <MiniLimitCard
+                  label="Serviços"
+                  value={formatLimit(currentPlanAccess.maxServices)}
+                />
+
+                <MiniLimitCard
+                  label="Automações"
+                  value={
+                    currentPlanAccess.canUseAutomations
+                      ? formatLimit(currentPlanAccess.maxAutomations)
+                      : "Bloqueado"
+                  }
+                />
+              </div>
+            </div>
+          )}
+
           {subscription && subscription.status !== "cancelled" && (
             <button
               type="button"
@@ -376,8 +435,9 @@ function BillingPage() {
           )}
 
           <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-800">
-            Pagamentos conectados ao Asaas. Ao escolher um plano, o cliente será
-            enviado para a página de pagamento via Pix, boleto ou cartão.
+            Pagamentos conectados ao Asaas. Ao escolher ou trocar um plano, o
+            cliente será enviado para a página de pagamento via Pix, boleto ou
+            cartão.
           </div>
         </section>
 
@@ -388,7 +448,8 @@ function BillingPage() {
             </h2>
 
             <p className="mt-2 text-slate-500">
-              Escolha o plano ideal para sua operação comercial.
+              Escolha o plano ideal para sua operação comercial. Quanto maior o
+              plano, mais limites, automações e recursos premium são liberados.
             </p>
           </div>
 
@@ -432,8 +493,14 @@ function BillingPage() {
 
           <div className="grid gap-4 lg:grid-cols-3">
             {plans.map((plan) => {
+              const access = getPlanAccess(plan.slug) as PlanAccessView;
+              const benefits = getPlanBenefits(plan, access);
+
               const isCurrent = currentPlanId === plan.id;
               const isProcessing = processingPlanId === plan.id;
+              const isPro = plan.slug === "pro";
+              const isBusiness = plan.slug === "business";
+
               const shouldDisableButton =
                 (isCurrent && subscription?.status !== "pending") ||
                 isProcessing;
@@ -441,14 +508,38 @@ function BillingPage() {
               return (
                 <article
                   key={plan.id}
-                  className={`rounded-3xl border p-5 ${
-                    isCurrent
-                      ? "border-indigo-300 bg-indigo-50"
-                      : "border-slate-200 bg-slate-50"
+                  className={`relative rounded-3xl border p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-xl ${
+                    isBusiness
+                      ? "border-slate-950 bg-slate-950 text-white"
+                      : isPro
+                        ? "border-indigo-300 bg-indigo-50"
+                        : isCurrent
+                          ? "border-indigo-300 bg-indigo-50"
+                          : "border-slate-200 bg-slate-50"
                   }`}
                 >
-                  {isCurrent && (
+                  {isPro && !isBusiness && (
                     <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      Mais recomendado
+                    </div>
+                  )}
+
+                  {isBusiness && (
+                    <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-950">
+                      <Crown className="h-3.5 w-3.5" />
+                      Mais completo
+                    </div>
+                  )}
+
+                  {isCurrent && (
+                    <div
+                      className={`mb-4 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${
+                        isBusiness
+                          ? "bg-emerald-400 text-slate-950"
+                          : "bg-indigo-600 text-white"
+                      }`}
+                    >
                       <BadgeCheck className="h-3.5 w-3.5" />
                       {subscription?.status === "pending"
                         ? "Pagamento pendente"
@@ -456,40 +547,86 @@ function BillingPage() {
                     </div>
                   )}
 
-                  <h3 className="text-xl font-bold text-slate-950">
+                  <h3
+                    className={`text-xl font-bold ${
+                      isBusiness ? "text-white" : "text-slate-950"
+                    }`}
+                  >
                     {plan.name}
                   </h3>
 
-                  <p className="mt-2 min-h-12 text-sm leading-6 text-slate-500">
-                    {plan.description || "Plano do Pubird Flow."}
+                  <p
+                    className={`mt-2 min-h-16 text-sm leading-6 ${
+                      isBusiness ? "text-slate-300" : "text-slate-500"
+                    }`}
+                  >
+                    {access.description ||
+                      plan.description ||
+                      "Plano do Pubird Flow."}
                   </p>
 
                   <div className="mt-5">
-                    <span className="text-3xl font-bold tracking-tight text-slate-950">
+                    <span
+                      className={`text-3xl font-bold tracking-tight ${
+                        isBusiness ? "text-white" : "text-slate-950"
+                      }`}
+                    >
                       {formatCurrency(Number(plan.price))}
                     </span>
 
-                    <span className="text-sm text-slate-500">/mês</span>
+                    <span
+                      className={`text-sm ${
+                        isBusiness ? "text-slate-300" : "text-slate-500"
+                      }`}
+                    >
+                      /mês
+                    </span>
+                  </div>
+
+                  <div
+                    className={`mt-5 grid gap-2 rounded-2xl border p-3 text-xs ${
+                      isBusiness
+                        ? "border-white/10 bg-white/5 text-slate-200"
+                        : "border-slate-200 bg-white text-slate-600"
+                    }`}
+                  >
+                    <PlanHighlight
+                      label="Leads"
+                      value={formatLimit(access.maxLeads)}
+                      dark={isBusiness}
+                    />
+                    <PlanHighlight
+                      label="Usuários"
+                      value={formatLimit(access.maxUsers)}
+                      dark={isBusiness}
+                    />
+                    <PlanHighlight
+                      label="Automações"
+                      value={
+                        access.canUseAutomations
+                          ? formatLimit(access.maxAutomations)
+                          : "Não incluso"
+                      }
+                      dark={isBusiness}
+                    />
                   </div>
 
                   <div className="mt-5 space-y-2">
-                    {(plan.features || []).slice(0, 5).map((feature) => (
+                    {benefits.map((feature) => (
                       <div
                         key={feature}
-                        className="flex items-start gap-2 text-sm text-slate-600"
+                        className={`flex items-start gap-2 text-sm ${
+                          isBusiness ? "text-slate-200" : "text-slate-600"
+                        }`}
                       >
-                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+                        <CheckCircle2
+                          className={`mt-0.5 h-4 w-4 shrink-0 ${
+                            isBusiness ? "text-emerald-300" : "text-emerald-600"
+                          }`}
+                        />
                         <span>{feature}</span>
                       </div>
                     ))}
-
-                    {(!plan.features || plan.features.length === 0) && (
-                      <>
-                        <Feature>CRM de leads</Feature>
-                        <Feature>Follow-up comercial</Feature>
-                        <Feature>Página pública</Feature>
-                      </>
-                    )}
                   </div>
 
                   <button
@@ -497,9 +634,11 @@ function BillingPage() {
                     onClick={() => handleSubscribe(plan)}
                     disabled={shouldDisableButton}
                     className={`mt-6 flex w-full items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                      isCurrent
-                        ? "bg-indigo-600 text-white"
-                        : "bg-slate-950 text-white hover:bg-slate-800"
+                      isBusiness
+                        ? "bg-white text-slate-950 hover:bg-slate-100"
+                        : isCurrent
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-950 text-white hover:bg-slate-800"
                     }`}
                   >
                     {isProcessing && (
@@ -510,7 +649,9 @@ function BillingPage() {
                       ? subscription?.status === "pending"
                         ? "Continuar pagamento"
                         : "Plano atual"
-                      : "Assinar plano"}
+                      : currentPlan
+                        ? `Trocar para ${plan.name}`
+                        : "Assinar plano"}
                   </button>
                 </article>
               );
@@ -630,6 +771,56 @@ function BillingPage() {
   );
 }
 
+function getPlanBenefits(plan: Plan, access: PlanAccessView) {
+  if (access.benefits && access.benefits.length > 0) {
+    return access.benefits;
+  }
+
+  if (plan.features && plan.features.length > 0) {
+    return plan.features;
+  }
+
+  if (plan.slug === "business") {
+    return [
+      "Tudo do Pro",
+      "Social Studio liberado",
+      "Relatórios avançados",
+      "Branding personalizado",
+      "Suporte prioritário",
+    ];
+  }
+
+  if (plan.slug === "pro") {
+    return [
+      "Tudo do Starter",
+      "Automações comerciais",
+      "CRM completo",
+      "Relatórios comerciais",
+      "Gestão básica de equipe",
+    ];
+  }
+
+  return [
+    "CRM de leads",
+    "Página pública da empresa",
+    "Mensagens prontas",
+    "Follow-up comercial",
+    "Histórico básico",
+  ];
+}
+
+function formatLimit(value?: number) {
+  if (typeof value !== "number") {
+    return "—";
+  }
+
+  if (value >= 10000) {
+    return "10k+";
+  }
+
+  return new Intl.NumberFormat("pt-BR").format(value);
+}
+
 function MetricCard(props: {
   label: string;
   value: string | number;
@@ -663,6 +854,38 @@ function MetricCard(props: {
   );
 }
 
+function MiniLimitCard(props: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+        {props.label}
+      </p>
+      <p className="mt-1 font-bold text-slate-950">{props.value}</p>
+    </div>
+  );
+}
+
+function PlanHighlight(props: {
+  label: string;
+  value: string;
+  dark?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className={props.dark ? "text-slate-300" : "text-slate-500"}>
+        {props.label}
+      </span>
+      <span
+        className={`font-bold ${
+          props.dark ? "text-white" : "text-slate-950"
+        }`}
+      >
+        {props.value}
+      </span>
+    </div>
+  );
+}
+
 function InfoRow(props: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm">
@@ -670,15 +893,6 @@ function InfoRow(props: { label: string; value: string }) {
       <span className="text-right font-semibold text-slate-900">
         {props.value}
       </span>
-    </div>
-  );
-}
-
-function Feature(props: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-2 text-sm text-slate-600">
-      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-      <span>{props.children}</span>
     </div>
   );
 }
