@@ -1,8 +1,7 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import {
   Copy,
-  Crown,
   Loader2,
   MessageCircle,
   Pencil,
@@ -28,10 +27,7 @@ import {
   updateMessageTemplate,
 } from "../../lib/message-templates";
 import { useCurrentPlan } from "../../hooks/useCurrentPlan";
-import {
-  canCreateMessageTemplate,
-  getPlanAccess,
-} from "../../lib/planAccess";
+import { canCreateMessageTemplate } from "../../lib/planAccess";
 
 export const Route = createFileRoute("/dashboard/messages")({
   component: MessagesPage,
@@ -128,19 +124,9 @@ function MessagesPage() {
     servico: previewService,
   });
 
-  const planAccess = useMemo(() => {
-    return getPlanAccess(planSlug);
-  }, [planSlug]);
-
-  const templateLimit = planAccess.maxMessageTemplates;
   const templatesUsed = templates.length;
   const canAddTemplate =
     isActive && canCreateMessageTemplate(planSlug, templatesUsed);
-
-  const templateUsagePercent =
-    templateLimit > 0
-      ? Math.min((templatesUsed / templateLimit) * 100, 100)
-      : 0;
 
   function resetForm() {
     setEditingTemplate(null);
@@ -304,53 +290,15 @@ function MessagesPage() {
         </div>
       )}
 
-      <div className="mb-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
-              <Crown className="h-3.5 w-3.5" />
-              Plano {planName || "atual"}
-            </div>
-
-            <h2 className="text-xl font-bold text-slate-950">
-              Uso de mensagens: {templatesUsed} /{" "}
-              {templateLimit >= 200 ? "200+" : templateLimit}
-            </h2>
-
-            <p className="mt-1 text-sm text-slate-500">
-              {canAddTemplate
-                ? "Você ainda pode criar novas mensagens prontas dentro do limite do seu plano."
-                : "Você atingiu o limite de mensagens prontas do seu plano atual."}
-            </p>
-          </div>
-
-          {!canAddTemplate && (
-            <Link
-              to="/dashboard/billing"
-              className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
-            >
-              Fazer upgrade
-            </Link>
-          )}
-        </div>
-
-        <div className="mt-5 h-3 overflow-hidden rounded-full bg-slate-100">
-          <div
-            className={`h-full rounded-full transition-all ${
-              templateUsagePercent >= 100 ? "bg-red-500" : "bg-indigo-600"
-            }`}
-            style={{ width: `${templateUsagePercent}%` }}
-          />
-        </div>
-      </div>
-
       <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div className="grid gap-3 sm:grid-cols-3">
           <MiniMetric label="Total" value={templates.length} />
+
           <MiniMetric
             label="Ativas"
             value={templates.filter((item) => item.status === "active").length}
           />
+
           <MiniMetric
             label="WhatsApp"
             value={
@@ -373,6 +321,7 @@ function MessagesPage() {
         <div className="grid gap-3 md:grid-cols-[1fr_220px_220px]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
             <input
               className="input-light pl-11"
               placeholder="Buscar por nome ou conteúdo"
@@ -391,6 +340,7 @@ function MessagesPage() {
             }
           >
             <option value="all">Todos os canais</option>
+
             {Object.entries(messageTemplateChannelLabels).map(
               ([value, label]) => (
                 <option key={value} value={value}>
@@ -410,6 +360,7 @@ function MessagesPage() {
             }
           >
             <option value="all">Todos os status</option>
+
             {Object.entries(messageTemplateStatusLabels).map(
               ([value, label]) => (
                 <option key={value} value={value}>
@@ -457,6 +408,7 @@ function MessagesPage() {
                         <Badge>
                           {messageTemplateChannelLabels[template.channel]}
                         </Badge>
+
                         <Badge>
                           {messageTemplateStatusLabels[template.status]}
                         </Badge>
@@ -511,6 +463,7 @@ function MessagesPage() {
           <div className="mt-5 space-y-3">
             <VariableItem value="{nome}" description="Nome do lead" />
             <VariableItem value="{empresa}" description="Nome da empresa" />
+
             <VariableItem
               value="{servico}"
               description="Serviço de interesse"
@@ -661,6 +614,7 @@ function MiniMetric(props: { label: string; value: number }) {
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
         {props.label}
       </p>
+
       <p className="mt-1 text-2xl font-bold text-slate-950">{props.value}</p>
     </div>
   );
@@ -677,6 +631,7 @@ function Field(props: {
         {props.label}
         {props.required && <span className="text-indigo-600"> *</span>}
       </span>
+
       {props.children}
     </label>
   );
@@ -696,6 +651,7 @@ function VariableItem(props: { value: string; description: string }) {
       <p className="font-mono text-sm font-bold text-slate-950">
         {props.value}
       </p>
+
       <p className="mt-1 text-xs text-slate-500">{props.description}</p>
     </div>
   );
